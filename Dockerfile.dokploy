@@ -1,33 +1,39 @@
-# 第一阶段：构建
+# 第一阶段：构建 (Builder)
+# 第一阶段
 FROM maven:3.9-eclipse-temurin-21 AS builder
-
 WORKDIR /app
 
-# 复制pom.xml文件
+# 复制构建所需的最小文件集
 COPY pom.xml .
-# 复制server模块相关文件
-COPY server/pom.xml ./server/
-# 复制所有模块的pom.xml（如果存在依赖）
-# COPY common/pom.xml ./common/  # 如果有其他模块
+COPY server/pom.xml ./server/pom.xml
 
-# 下载依赖（利用Docker缓存层）
-RUN mvn dependency:go-offline -B
+# 复制本地依赖库（解决jai_core问题）
+COPY server/lib/ ./server/lib/
+COPY server/LibreOfficePortable/ ./server/LibreOfficePortable/
+# 下载依赖（建立缓存层）
+RUN mvn dependency:go-offline -B -N  # -N 不递归构建子模块
 
-# 复制源码
+# 复制源码和其他必需文件
 COPY server/src ./server/src
-
-# 只构建server模块
+# 构建server模块及其依赖
 RUN mvn clean package -DskipTests -pl server -am
 
 # 第二阶段：最终镜像
 FROM ymlisoft/kkfileview-base:4.4.0-v2
 
+# 从构建阶段复制打包文件
 COPY --from=builder --chown=root:root /app/server/target/kkFileView-*.tar.gz /opt/
+
+# 还需要复制LibreOfficePortable到最终镜像（关键！）
+COPY --from=builder --chown=root:root /app/server/LibreOfficePortable/ /opt/LibreOfficePortable/
 
 WORKDIR /opt
 RUN tar -xzf kkFileView-*.tar.gz && \
     rm -f kkFileView-*.tar.gz
 
+# 设置环境变量（可能需要指向LibreOffice）
 ENV KKFILEVIEW_BIN_FOLDER=/opt/kkFileView-4.4.0-v2/bin
+ENV OFFICE_HOME=/opt/LibreOfficePortable/
 
+# 启动命令
 ENTRYPOINT ["java", "-Dfile.encoding=UTF-8", "-Dspring.config.location=/opt/kkFileView-4.4.0-v2/config/application.properties", "-jar", "/opt/kkFileView-4.4.0-v2/bin/kkFileView-4.4.0-v2.jar"]
