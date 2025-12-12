@@ -1,29 +1,33 @@
-# 第一阶段：构建 (Builder)
-# 使用 OpenJDK 21 并安装 Maven 3.12.1
+# 第一阶段：构建
 FROM maven:3.9-eclipse-temurin-21 AS builder
-# 设置工作目录。
-WORKDIR /app
-# 复制 pom.xml 和源码
-COPY pom.xml .
-COPY server/src ./src
-# 构建项目
-RUN mvn clean package -DskipTests
 
-# 第二阶段：最终镜像 (Final Image)
-# 使用目标基础镜像 ymlisoft/kkfileview-base:4.4.0-v2
+WORKDIR /app
+
+# 复制pom.xml文件
+COPY pom.xml .
+# 复制server模块相关文件
+COPY server/pom.xml ./server/
+# 复制所有模块的pom.xml（如果存在依赖）
+# COPY common/pom.xml ./common/  # 如果有其他模块
+
+# 下载依赖（利用Docker缓存层）
+RUN mvn dependency:go-offline -B
+
+# 复制源码
+COPY server/src ./server/src
+
+# 只构建server模块
+RUN mvn clean package -DskipTests -pl server -am
+
+# 第二阶段：最终镜像
 FROM ymlisoft/kkfileview-base:4.4.0-v2
 
-# 将第一阶段生成的 .tar.gz 复制到目标位置
-# 使用 COPY 命令并指定 --from=builder
 COPY --from=builder --chown=root:root /app/server/target/kkFileView-*.tar.gz /opt/
 
-# 进入 /opt 目录并解压文件
 WORKDIR /opt
 RUN tar -xzf kkFileView-*.tar.gz && \
     rm -f kkFileView-*.tar.gz
 
-# 设置环境变量
 ENV KKFILEVIEW_BIN_FOLDER=/opt/kkFileView-4.4.0-v2/bin
 
-# 启动命令
 ENTRYPOINT ["java", "-Dfile.encoding=UTF-8", "-Dspring.config.location=/opt/kkFileView-4.4.0-v2/config/application.properties", "-jar", "/opt/kkFileView-4.4.0-v2/bin/kkFileView-4.4.0-v2.jar"]
