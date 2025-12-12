@@ -20,7 +20,8 @@ RUN mvn clean package -DskipTests
 FROM ymlisoft/kkfileview-base:4.4.0-v2
 # 将第一阶段生成的 .tar.gz 复制到目标位置
 # 注意：这里使用 --from 指定来源
-ADD --chown=root:root server/target/kkFileView-*.tar.gz /opt/
+#ADD --chown=root:root server/target/kkFileView-*.tar.gz /opt/
+ADD --chown=root:root --from=builder /app/server/target/kkFileView-*.tar.gz /opt/
 # 设置环境变量
 ENV KKFILEVIEW_BIN_FOLDER=/opt/kkFileView-4.4.0-v2/bin
 # 启动命令
