@@ -1,0 +1,46 @@
+# 第一阶段：构建
+FROM maven:3.9-eclipse-temurin-21 AS builder
+WORKDIR /app
+
+COPY pom.xml .
+COPY server/pom.xml ./server/pom.xml
+COPY server/lib/ ./server/lib/
+COPY server/LibreOfficePortable/ ./server/LibreOfficePortable/
+COPY server/src ./server/src
+
+RUN mvn clean package -DskipTests -pl server -am
+
+# 第二阶段：运行
+FROM ymlisoft/kkfileview-base:4.4.0-v2
+
+# 设置工作目录并复制文件
+WORKDIR /opt
+
+# 复制打包文件
+COPY --from=builder --chown=root:root /app/server/target/kkFileView-*.tar.gz .
+
+# 复制LibreOffice
+COPY --from=builder --chown=root:root /app/server/LibreOfficePortable/ /opt/LibreOfficePortable/
+
+# 解压并设置权限
+RUN tar -xzf kkFileView-*.tar.gz && \
+    rm -f kkFileView-*.tar.gz && \
+    chmod -R 755 /opt/LibreOfficePortable/ && \
+    echo "=== 解压后的目录结构 ===" && \
+    ls -la /opt/
+
+# 查找实际的应用程序目录
+RUN APP_DIR=$(ls -d /opt/kkFileView-*) && \
+    echo "应用目录: $APP_DIR" && \
+    echo "配置文件: $APP_DIR/config/application.properties" && \
+    echo "JAR文件: $APP_DIR/bin/kkFileView-*.jar"
+
+# 暴露端口
+EXPOSE 8012
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8012/ || exit 1
+
+# 使用shell模式以便变量扩展
+ENTRYPOINT ["sh", "-c", "APP_DIR=$(ls -d /opt/kkFileView-*) && java -Dfile.encoding=UTF-8 -Dspring.config.location=${APP_DIR}/config/application.properties -jar ${APP_DIR}/bin/kkFileView-*.jar"]
