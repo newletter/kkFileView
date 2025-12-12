@@ -1,0 +1,27 @@
+# 第一阶段：构建 (Builder)
+# 使用 OpenJDK 21 并安装 Maven 3.12.1
+FROM openjdk:21.0.1-jdk-slim AS builder
+# 设置工作目录
+WORKDIR /app
+# 复制 pom.xml 和源码
+COPY pom.xml .
+COPY server/src ./src
+# 安装 Maven 3.12.1 (如果基础镜像中没有自带)
+# 注意：这里假设您已将 maven-3.12.1-bin.zip 上传到了项目根目录
+# 或者您可以直接下载，但为了构建一致性，建议预先准备好
+RUN wget https://dlcdn.apache.org/maven/maven-3/3.12.1/binaries/apache-maven-3.12.1-bin.zip && \
+    unzip apache-maven-3.12.1-bin.zip && \
+    mv apache-maven-3.12.1 /usr/local/maven && \
+    ln -s /usr/local/maven/bin/mvn /usr/bin/mvn
+# 构建项目
+RUN mvn clean package -DskipTests
+# 第二阶段：最终镜像 (Final Image)
+# 使用目标基础镜像 ymlisoft/kkfileview-base:4.4.0-v2
+FROM ymlisoft/kkfileview-base:4.4.0-v2
+# 将第一阶段生成的 .tar.gz 复制到目标位置
+# 注意：这里使用 --from 指定来源
+ADD --chown=root:root server/target/kkFileView-*.tar.gz /opt/
+# 设置环境变量
+ENV KKFILEVIEW_BIN_FOLDER=/opt/kkFileView-4.4.0-v2/bin
+# 启动命令
+ENTRYPOINT ["java", "-Dfile.encoding=UTF-8", "-Dspring.config.location=/opt/kkFileView-4.4.0-v2/config/application.properties", "-jar", "/opt/kkFileView-4.4.0-v2/bin/kkFileView-4.4.0-v2.jar"]
