@@ -14,6 +14,13 @@ public class ConfigUtils {
     private static final String MAIN_DIRECTORY_NAME = "server";
 
     public static String getHomePath() {
+        // ============== 新增开始 ==============
+        // 优先级 1：新增的专用系统属性 `kkfileview.home`
+        String kkHome = System.getProperty("kkfileview.home");
+        if (kkHome != null && !kkHome.trim().isEmpty()) {
+            return kkHome.trim();
+        }
+        // ============== 新增结束 ==============
         String userDir = System.getenv("KKFILEVIEW_BIN_FOLDER");
         if (userDir == null) {
             userDir = System.getProperty("user.dir");

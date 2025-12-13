@@ -43,4 +43,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:8012/ || exit 1
 
 # 使用shell模式以便变量扩展
-ENTRYPOINT ["sh", "-c", "APP_DIR=$(ls -d /opt/kkFileView-*) && java -Dfile.encoding=UTF-8 -Dspring.config.location=${APP_DIR}/config/application.properties -jar ${APP_DIR}/bin/kkFileView-*.jar"]
+ENTRYPOINT ["sh", "-c", "APP_DIR=$(ls -d /opt/kkFileView-*) && java -Dkkfileview.home=${APP_DIR} -Dfile.encoding=UTF-8 -Dspring.config.location=${APP_DIR}/config/application.properties -jar ${APP_DIR}/bin/kkFileView-*.jar"]
+# ENTRYPOINT ["sh", "-c", "APP_DIR=$(ls -d /opt/kkFileView-*) && java -Dfile.encoding=UTF-8 -Dspring.config.location=${APP_DIR}/config/application.properties -jar ${APP_DIR}/bin/kkFileView-*.jar"]
